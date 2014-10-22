@@ -55,7 +55,7 @@
 	</patternset>
 
 
-	<target name="default" depends="compile,unit-tests">
+	<target name="default" depends="jar,unit-tests">
 	</target>
 	<target name="init">
 		<mkdir dir="build/classes" />
