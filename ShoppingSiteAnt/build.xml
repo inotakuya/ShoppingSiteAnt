@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="ShoppingSiteAnt" basedir="." default="default">
+
+	<property name="build.dir" location="build" />
+	<property name="build.classes.dir" location="${build.dir}/classes" />
+	<property name="test.dir" location="${build.dir}/test" />
+	<property name="test.classes.dir" location="${test.dir}/classes" />
+	<property name="test.data.dir" location="${test.dir}/data" />
+	<property name="test.reports.dir" location="${test.dir}/reports" />
+
+	<property name="dist.dir" location="dist" />
+	<property name="dist.doc.dir" location="${dist.dir}/doc" />
+	<property name="javadoc.dir" location="${dist.dir}/api" />
+	<property name="project.name" value="ShoppingSiteAnt" />
+	<property name="project.version" value="0.1alpha" />
+	<property name="project.name-ver" value="${project.name}-${project.version}" />
+	<property name="target.name" value="${project.name-ver}.jar" />
+	<property name="target.jar" location="${dist.dir}/${target.name}" />
+	<property name="target.zip" location="${dist.dir}/${project.name-ver}.zip" />
+	<property name="src.zip" location="${dist.dir}/${project.name-ver}-src.zip" />
+	<property name="unjar.dir" location="${build.dir}/unjar" />
+	<property name="build.debug" value="true" />
+
+	<property name="source.files.tocopy" value="**/*.properties,**/*.xml,**/*.sql,**/*.xls,**/*.jsp,**/*.css" />
+	<property name="bin.dir" location="bin" />
+	<property name="unzip.dir" location="${build.dir}/unzip" />
+	<property name="unzip.bin.dir" location="${unzip.dir}/bin" />
+	<property name="unzip.src.dir" location="${unzip.dir}/src" />
+	<property name="untar.dir" location="${build.dir}/untar" />
+	<property name="unjar.dir" location="${build.dir}/unjar" />
+
+	<path id="compile.classpath">
+		<fileset dir="lib">
+			<include name="*.jar" />
+		</fileset>
+	</path>
+
+	<path id="test.compile.classpath">
+		<path refid="compile.classpath" />
+		<pathelement location="${target.jar}" />
+	</path>
+
+	<path id="test.classpath">
+		<path refid="test.compile.classpath" />
+		<pathelement location="${test.classes.dir}" />
+	</path>
+
+	<path id="test.forking.classpath">
+		<path refid="test.classpath" />
+		<pathelement path="${java.class.path}" />
+	</path>
+
+	<patternset id="failing.tests">
+		<exclude unless="run.failing.tests" name="**/Abstract*/**" />
+	</patternset>
+
+
+	<target name="default" depends="compile,unit-tests">
+	</target>
+	<target name="init">
+		<mkdir dir="build/classes" />
+		<mkdir dir="test" />
+	</target>
+
+	<target name="compile" depends="init">
+		<condition property="build.debuglevel" value="lines,source" else="lines,vars,source">
+			<isset property="release.build" />
+		</condition>
+		<echo level="verbose">debug level=${build.debuglevel}</echo>
+		<javac destdir="${build.classes.dir}" debug="true" debuglevel="${build.debuglevel}" includeantruntime="false" srcdir="src" encoding="UTF-8">
+			<classpath refid="compile.classpath" />
+		</javac>
+		<copy todir="${build.classes.dir}">
+			<fileset dir="src" includes="${source.files.tocopy}" />
+		</copy>
+	</target>
+
+	<target name="jar" description="create the JAR file" depends="compile">
+		<property name="manifest.mf" location="${build.dir}/manifest.mf" />
+		<manifest file="${manifest.mf}">
+		</manifest>
+		<jar destfile="${target.jar}" manifest="${manifest.mf}">
+			<fileset dir="${build.classes.dir}" />
+		</jar>
+	</target>
+
+	<target name="test-init" depends="jar">
+		<mkdir dir="${test.classes.dir}" />
+		<delete dir="${test.data.dir}" />
+		<delete dir="${test.reports.dir}" />
+		<mkdir dir="${test.data.dir}" />
+		<mkdir dir="${test.reports.dir}" />
+	</target>
+
+	<target name="test-compile" depends="compile,test-init">
+		<javac destdir="${test.classes.dir}" debug="true" includeantruntime="yes" srcdir="src/test" encoding="UTF-8">
+			<classpath refid="test.compile.classpath" />
+		</javac>
+		<copy todir="${test.classes.dir}">
+			<fileset dir="src" includes="${source.files.tocopy}" />
+		</copy>
+	</target>
+
+	<target name="unit-tests" depends="test-compile">
+		<junit printsummary="false" errorproperty="test.failed" failureproperty="test.failed">
+			<classpath refid="test.forking.classpath" />
+			<sysproperty key="debug" value="true" />
+			<sysproperty key="data.dir" file="./data" />
+			<formatter type="brief" usefile="false" />
+			<formatter type="xml" />
+			<batchtest todir="${test.data.dir}">
+				<fileset dir="${test.classes.dir}">
+					<include name="**/*Test.class" />
+					<patternset refid="failing.tests">
+					</patternset>
+				</fileset>
+			</batchtest>
+		</junit>
+		<junitreport todir="${test.reports.dir}">
+			<fileset dir="${test.data.dir}">
+				<include name="TEST-*.xml" />
+			</fileset>
+			<report format="frames" todir="${test.reports.dir}" />
+		</junitreport>
+	</target>
+
+	<target name="javadocs" depends="compile" description="make the java docs">
+		<javadoc access="private" destdir="${javadoc.dir}" windowtitle="${ant.project.name}" failonerror="true" encoding="UTF-8" docencoding="UTF-8" additionalparam="-J-Dfile.encoding=UTF-8">
+			<packageset dir="src/main/java">
+			</packageset>
+			<classpath refid="compile.classpath" />
+		</javadoc>
+	</target>
+
+
+	<target name="clean">
+		<delete dir="${build.dir}" />
+		<delete dir="${dist.dir}" />
+	</target>
+
+	<target name="war" depends="compile">
+		<war destfile="${dist.dir}/${ant.project.name}.war" webxml="src/main/webapp/WEB-INF/web.xml">
+			<webinf dir="src/main/webapp/WEB-INF">
+				<exclude name="**/*.web.xml" />
+			</webinf>
+			<lib dir="lib">
+			</lib>
+			<classes dir="${build.classes.dir}">
+			</classes>
+			<fileset dir="src/main/webapp">
+				<include name="**/*.css" />
+			</fileset>
+		</war>
+	</target>
+	
+	<target name="war2" depends="compile">
+		<war destfile="${dist.dir}/${ant.project.name}.war" webxml="src/main/webapp/WEB-INF/web.xml">
+	<fileset dir="${build.classes.dir}">
+		<include name="**/**"/>
+	<exclude name="**/*.web.xml"/></fileset>
+			<lib dir="lib"></lib>
+		</war>
+	</target>
+
+	<property name="tomcat.ant.jar" value="${basedir}/lib/catalina-ant.jar" />
+	<property name="tomcat.manager" value="http://localhost:8080/manager/html" />
+	<property name="tomcat.user" value="manager" />
+	<property name="tomcat.password" value="tomcat" />
+	<property name="tomcat.ant" value="org.apache.catalina.ant" />
+
+	<path id="catalina.path">
+		<fileset dir="lib">
+			<include name="catalina-ant.jar"/>
+			<include name="tomcat-coyote.jar"/>
+			<include name="tomcat-util.jar"/>
+		</fileset>
+	</path>
+	
+	<path id="tomcat.path">
+		<fileset dir="tomcat">
+			<include name="**/*.jar"/>
+		</fileset>
+	</path> 
+
+	<taskdef name="start" classname="${tomcat.ant}.StartTask" classpathref="catalina.path" />
+	<taskdef name="stop" classname="${tomcat.ant}.StopTask" classpathref="tomcat.path" />
+	<taskdef name="reload" classname="${tomcat.ant}.ReloadTask" classpathref="catalina.path" />
+	<taskdef name="deploy" classname="${tomcat.ant}.DeployTask" classpathref="catalina.path" />
+	<taskdef name="undeploy" classname="${tomcat.ant}.UndeployTask" classpathref="catalina.path" />
+
+	<target name="start">
+		<start url="${tomcat.manager}" username="${tomcat.user}" password="${tomcat.password}" path="/${ant.project.name}" />
+	</target>
+
+	<target name="stop">
+		<stop url="${tomcat.manager}" 
+			username="${tomcat.user}"
+			password="${tomcat.password}"
+			path="/examples" />
+	</target>
+
+	<target name="deploy">
+		<deploy url="${tomcat.manager}"
+				username="${tomcat.user}"
+				password="${tomcat.password}"
+				path="/${ant.project.name}"
+			war="${dist.dir}/${ant.project.name}.war"/>
+	</target>
+	<target name="aaa">
+		<echo message="${ant.project.name}">
+		</echo>
+	</target>
+
+</project>
